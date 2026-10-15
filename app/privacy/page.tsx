@@ -28,7 +28,7 @@ export default function PrivacyPage() {
       </ul>
 
       <h2 className="font-label text-xl text-gold">Who can see the photos</h2>
-      <p>Only the NGI HR team, in a private Google Shared Drive. Photos are not posted publicly or shared in internal channels.</p>
+      <p>Only the NGI HR team, in a private Google Drive folder. Photos are not posted publicly or shared in internal channels.</p>
 
       <h2 className="font-label text-xl text-gold">How long they are kept</h2>
       <p>12 months. All photos are deleted by 8 December 2027.</p>

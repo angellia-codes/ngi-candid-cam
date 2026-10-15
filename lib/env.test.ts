@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { parseEnv } from '@/lib/env';
 
 const valid: Record<string, string | undefined> = {
-  GOOGLE_SA_EMAIL: 'candid-cam@ngi-nf26.iam.gserviceaccount.com',
-  GOOGLE_SA_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n',
-  DRIVE_SHARED_DRIVE_ID: '0ABC',
+  GOOGLE_OAUTH_CLIENT_ID: 'client-id.apps.googleusercontent.com',
+  GOOGLE_OAUTH_CLIENT_SECRET: 'client-secret',
+  GOOGLE_OAUTH_REFRESH_TOKEN: 'refresh-token',
   DRIVE_FOLDER_ID: '1XYZ',
   EVENT_KEY: 'k'.repeat(24),
   CAMERA_OPEN_AT: '2026-12-08T15:00:00+08:00',
@@ -23,7 +23,7 @@ describe('parseEnv', () => {
     expect(e.shotsPerDevice).toBe(15);
     expect(e.deviceUploadCap).toBe(20);
     expect(e.cameraOpenAt.toISOString()).toBe('2026-12-08T07:00:00.000Z');
-    expect(e.googleSaPrivateKey).toContain('\nabc\n');
+    expect(e.googleRefreshToken).toBe('refresh-token');
   });
 
   it('names every missing variable', () => {

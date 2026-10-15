@@ -1,6 +1,6 @@
 # NF'26 Candid Cam
 
-Mobile web camera for NourishFest 2026 (8 Dec 2026). Guests scan a QR code, shoot up to 15 framed retro photos, and every confirmed photo is saved to a private HR-owned Google Shared Drive.
+Mobile web camera for NourishFest 2026 (8 Dec 2026). Guests scan a QR code, shoot up to 15 framed retro photos, and every confirmed photo is saved to a private Google Drive folder owned by HR.
 
 - Local development: docs/SETUP.md
 - Google Drive setup: docs/DRIVE_SETUP.md

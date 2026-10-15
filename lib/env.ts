@@ -1,9 +1,9 @@
 import 'server-only';
 
 export type ServerEnv = {
-  googleSaEmail: string;
-  googleSaPrivateKey: string;
-  driveSharedDriveId: string;
+  googleClientId: string;
+  googleClientSecret: string;
+  googleRefreshToken: string;
   driveFolderId: string;
   eventKey: string;
   cameraOpenAt: Date;
@@ -17,9 +17,9 @@ export type ServerEnv = {
 };
 
 const REQUIRED = [
-  'GOOGLE_SA_EMAIL',
-  'GOOGLE_SA_PRIVATE_KEY',
-  'DRIVE_SHARED_DRIVE_ID',
+  'GOOGLE_OAUTH_CLIENT_ID',
+  'GOOGLE_OAUTH_CLIENT_SECRET',
+  'GOOGLE_OAUTH_REFRESH_TOKEN',
   'DRIVE_FOLDER_ID',
   'EVENT_KEY',
   'CAMERA_OPEN_AT',
@@ -59,10 +59,9 @@ export function parseEnv(src: Source): ServerEnv {
   };
 
   const parsed: ServerEnv = {
-    googleSaEmail: str('GOOGLE_SA_EMAIL'),
-    // Netlify and .env files store the key on one line with literal "\n".
-    googleSaPrivateKey: str('GOOGLE_SA_PRIVATE_KEY').replace(/\\n/g, '\n'),
-    driveSharedDriveId: str('DRIVE_SHARED_DRIVE_ID'),
+    googleClientId: str('GOOGLE_OAUTH_CLIENT_ID'),
+    googleClientSecret: str('GOOGLE_OAUTH_CLIENT_SECRET'),
+    googleRefreshToken: str('GOOGLE_OAUTH_REFRESH_TOKEN'),
     driveFolderId: str('DRIVE_FOLDER_ID'),
     eventKey: secret('EVENT_KEY'),
     cameraOpenAt: date('CAMERA_OPEN_AT'),
