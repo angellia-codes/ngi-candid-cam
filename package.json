@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "drive:connect": "tsx --env-file=.env.local scripts/drive-connect.ts",
     "verify:drive": "tsx --conditions=react-server --env-file=.env.local scripts/verify-drive.ts"
   },
   "dependencies": {

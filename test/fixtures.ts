@@ -2,9 +2,9 @@ import type { ServerEnv } from '@/lib/env';
 
 export function testEnv(overrides: Partial<ServerEnv> = {}): ServerEnv {
   return {
-    googleSaEmail: 'candid-cam@ngi-nf26.iam.gserviceaccount.com',
-    googleSaPrivateKey: '-----BEGIN PRIVATE KEY-----\nTEST\n-----END PRIVATE KEY-----\n',
-    driveSharedDriveId: '0ABC',
+    googleClientId: 'client-id.apps.googleusercontent.com',
+    googleClientSecret: 'client-secret',
+    googleRefreshToken: 'refresh-token',
     driveFolderId: '1XYZ',
     eventKey: 'k'.repeat(24),
     cameraOpenAt: new Date('2026-12-08T15:00:00+08:00'),

@@ -5,7 +5,6 @@ import { getAccessToken } from '@/lib/drive/auth';
 export type DriveDeps = {
   fetch: typeof fetch;
   getToken: () => Promise<string>;
-  sharedDriveId: string;
   folderId: string;
 };
 
@@ -23,13 +22,13 @@ export class DriveError extends Error {
 
 const API = 'https://www.googleapis.com/drive/v3/files';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
+const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
 export function driveDeps(): DriveDeps {
   const e = env();
   return {
     fetch: globalThis.fetch.bind(globalThis),
     getToken: getAccessToken,
-    sharedDriveId: e.driveSharedDriveId,
     folderId: e.driveFolderId,
   };
 }
@@ -76,10 +75,7 @@ export async function listDevicePhotos(deps: DriveDeps, deviceId: string, signal
   for (let page = 0; page < 5; page++) {
     const params = new URLSearchParams({
       q,
-      corpora: 'drive',
-      driveId: deps.sharedDriveId,
-      includeItemsFromAllDrives: 'true',
-      supportsAllDrives: 'true',
+      spaces: 'drive',
       pageSize: '100',
       fields: 'nextPageToken,files(id,appProperties)',
     });
@@ -116,7 +112,7 @@ export async function createPhoto(
     new Uint8Array(input.bytes),
     `\r\n--${boundary}--\r\n`,
   ]);
-  const params = new URLSearchParams({ uploadType: 'multipart', supportsAllDrives: 'true', fields: 'id' });
+  const params = new URLSearchParams({ uploadType: 'multipart', fields: 'id' });
   const data = (await call(
     deps,
     `${UPLOAD}?${params}`,
@@ -130,20 +126,22 @@ export async function createPhoto(
 export async function trashFile(deps: DriveDeps, id: string, signal: AbortSignal): Promise<void> {
   await call(
     deps,
-    `${API}/${encodeURIComponent(id)}?supportsAllDrives=true`,
+    `${API}/${encodeURIComponent(id)}`,
     { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ trashed: true }) },
     signal,
   );
 }
 
 export async function checkFolder(deps: DriveDeps, signal: AbortSignal): Promise<void> {
-  const params = new URLSearchParams({ supportsAllDrives: 'true', fields: 'id,driveId,capabilities(canAddChildren)' });
+  const params = new URLSearchParams({ fields: 'id,mimeType,trashed,capabilities(canAddChildren)' });
   const data = (await call(deps, `${API}/${encodeURIComponent(deps.folderId)}?${params}`, { method: 'GET' }, signal)) as {
-    driveId?: string;
+    mimeType?: string;
+    trashed?: boolean;
     capabilities?: { canAddChildren?: boolean };
   };
-  if (data.driveId !== deps.sharedDriveId) throw new DriveError('http_error', 'Folder is not in the configured Shared Drive');
+  if (data.mimeType !== FOLDER_MIME) throw new DriveError('http_error', 'DRIVE_FOLDER_ID is not a folder');
+  if (data.trashed) throw new DriveError('http_error', 'The Photos folder is in the Drive trash');
   if (!data.capabilities?.canAddChildren) {
-    throw new DriveError('http_error', 'Service account cannot add files to the folder (needs Content manager)');
+    throw new DriveError('http_error', 'This Google account cannot add files to the Photos folder');
   }
 }
