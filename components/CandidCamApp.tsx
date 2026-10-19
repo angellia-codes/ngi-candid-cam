@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
+import { FlyToThumb } from '@/components/motion/FlyToThumb';
 import { PendingBanner } from '@/components/PendingBanner';
 import { Access } from '@/components/screens/Access';
 import { Blocked } from '@/components/screens/Blocked';
@@ -16,6 +17,7 @@ import { acceptConsent, clearConsent, hasConsent } from '@/lib/client/consent';
 import { initIdentity } from '@/lib/client/identity';
 import { useNow } from '@/lib/client/useNow';
 import { useObjectUrl } from '@/lib/client/useObjectUrl';
+import type { Box } from '@/lib/motion/flip';
 import { useQueue } from '@/lib/queue/useQueue';
 import type { PublicStatus } from '@/lib/shared/status';
 
@@ -27,6 +29,8 @@ export default function CandidCamApp() {
   const [statusError, setStatusError] = useState<string | null>(null);
   const [identity, setIdentity] = useState<{ hasKey: boolean; keyLink: string | null }>({ hasKey: false, keyLink: null });
   const [capture, setCapture] = useState<Capture | null>(null);
+  const [fly, setFly] = useState<{ src: string; from: Box } | null>(null);
+  const [thumbBump, setThumbBump] = useState(0);
   const clockOffset = useRef(0);
   const captureCount = useRef(0);
   const tick = useNow(30_000);
@@ -133,6 +137,7 @@ export default function CandidCamApp() {
             onOpenRoll={() => dispatch({ type: 'OPEN_ROLL' })}
             onBlock={onBlock}
             onExit={() => dispatch({ type: 'EXIT' })}
+            thumbBumpKey={thumbBump}
           />
         </div>
       )}
@@ -148,8 +153,9 @@ export default function CandidCamApp() {
             setCapture(null);
             dispatch({ type: 'RETAKE' });
           }}
-          onConfirm={async ({ photoId, bytes }) => {
+          onConfirm={async ({ photoId, bytes, box }) => {
             await queue.add({ photoId, capturedAt: capture.capturedAt.toISOString(), bytes });
+            setFly({ src: URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' })), from: box });
             setCapture(null);
             dispatch({ type: 'CONFIRMED' });
           }}
@@ -174,6 +180,18 @@ export default function CandidCamApp() {
           keyLink={identity.keyLink}
           onRetry={() => dispatch({ type: 'RETRY_CAMERA' })}
           onOpenRoll={() => dispatch({ type: 'OPEN_ROLL' })}
+        />
+      )}
+
+      {fly && (
+        <FlyToThumb
+          src={fly.src}
+          from={fly.from}
+          onDone={() => {
+            URL.revokeObjectURL(fly.src);
+            setFly(null);
+            setThumbBump((n) => n + 1);
+          }}
         />
       )}
     </>

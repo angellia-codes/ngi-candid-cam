@@ -7,6 +7,7 @@ import { composeFrame, drawLiveText } from '@/lib/image/compose';
 import { canvasToBlob, encodeJpeg } from '@/lib/image/encode';
 import { FILTERS } from '@/lib/image/filters';
 import { ensureFrameFonts } from '@/lib/image/fonts';
+import type { Box } from '@/lib/motion/flip';
 import { prefersReducedMotion } from '@/lib/motion/reducedMotion';
 import { EASE, MOMENTS, MOTION, REVEAL } from '@/lib/motion/tokens';
 import { typingSteps } from '@/lib/motion/typing';
@@ -18,7 +19,7 @@ type Props = {
   shotNumber: number;
   total: number;
   onRetake: () => void;
-  onConfirm: (input: { photoId: string; bytes: ArrayBuffer }) => Promise<void>;
+  onConfirm: (input: { photoId: string; bytes: ArrayBuffer; box: Box }) => Promise<void>;
 };
 
 const SLIDE_PX = 48;
@@ -117,7 +118,12 @@ export function Preview({ photo, capturedAt, shotNumber, total, onRetake, onConf
     setError(null);
     try {
       const blob = await encode();
-      await onConfirm({ photoId, bytes: await blob.arrayBuffer() });
+      const r = canvasRef.current!.getBoundingClientRect();
+      await onConfirm({
+        photoId,
+        bytes: await blob.arrayBuffer(),
+        box: { left: r.left, top: r.top, width: r.width, height: r.height },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save the photo. Try again.');
       setBusy(null);
