@@ -81,7 +81,7 @@ function drawBolt(ctx: CanvasRenderingContext2D, x: number, y: number) {
   ctx.stroke();
 }
 
-function drawOverlay(ctx: CanvasRenderingContext2D, input: ComposeInput) {
+function drawOverlay(ctx: CanvasRenderingContext2D, input: ComposeInput, liveText: boolean) {
   ctx.save();
   ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
   ctx.shadowBlur = 6;
@@ -96,21 +96,44 @@ function drawOverlay(ctx: CanvasRenderingContext2D, input: ComposeInput) {
   ctx.textAlign = 'left';
   ctx.fillText(TEXT.nf26.text, TEXT.nf26.x, TEXT.nf26.y);
 
+  // The bolt sits left of the full shot label, even while the label is still typing in.
   ctx.font = TEXT.shot.font;
-  ctx.textAlign = 'right';
-  ctx.fillText(input.shotLabel, TEXT.shot.rightX, TEXT.shot.y);
   const shotWidth = ctx.measureText(input.shotLabel).width;
   drawBolt(ctx, TEXT.shot.rightX - shotWidth - TEXT.bolt.gap - TEXT.bolt.width, TEXT.shot.y - TEXT.bolt.height + 10);
-
-  ctx.font = TEXT.stamp.font;
-  ctx.fillStyle = COLORS.green;
-  ctx.textAlign = 'left';
-  ctx.fillText(input.stamp, TEXT.stamp.x, TEXT.stamp.y);
 
   ctx.font = TEXT.hashtag.font;
   ctx.fillStyle = COLORS.gold;
   ctx.textAlign = 'right';
   ctx.fillText(TEXT.hashtag.text, TEXT.hashtag.rightX, TEXT.hashtag.y);
+  ctx.restore();
+
+  if (liveText) drawLiveText(ctx, input);
+}
+
+/**
+ * Draws the per-photo text: shot counter (top right) and capture time (bottom left).
+ * `shown` limits how many characters of each are drawn, for the reveal's typing effect.
+ */
+export function drawLiveText(
+  ctx: CanvasRenderingContext2D,
+  input: Pick<ComposeInput, 'shotLabel' | 'stamp'>,
+  shown: { shot: number; stamp: number } = { shot: input.shotLabel.length, stamp: input.stamp.length },
+): void {
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+
+  ctx.font = TEXT.shot.font;
+  ctx.fillStyle = COLORS.overlay;
+  const shotLeft = TEXT.shot.rightX - ctx.measureText(input.shotLabel).width;
+  ctx.fillText(input.shotLabel.slice(0, shown.shot), shotLeft, TEXT.shot.y);
+
+  ctx.font = TEXT.stamp.font;
+  ctx.fillStyle = COLORS.green;
+  ctx.fillText(input.stamp.slice(0, shown.stamp), TEXT.stamp.x, TEXT.stamp.y);
   ctx.restore();
 }
 
@@ -133,8 +156,13 @@ function drawBand(ctx: CanvasRenderingContext2D) {
   ctx.restore();
 }
 
-/** Draws the full 1320×1920 framed photo. `input.photo` must be 1200×1600 (see captureFrame). */
-export function composeFrame(canvas: HTMLCanvasElement, input: ComposeInput): void {
+export type ComposeOptions = { liveText?: boolean };
+
+/**
+ * Draws the full 1320×1920 framed photo. `input.photo` must be 1200×1600 (see captureFrame).
+ * `liveText: false` leaves out the shot counter and capture time, so Preview can type them in.
+ */
+export function composeFrame(canvas: HTMLCanvasElement, input: ComposeInput, opts: ComposeOptions = {}): void {
   canvas.width = OUT.width;
   canvas.height = OUT.height;
   const ctx = canvas.getContext('2d')!;
@@ -158,6 +186,6 @@ export function composeFrame(canvas: HTMLCanvasElement, input: ComposeInput): vo
   ctx.stroke();
   ctx.restore();
 
-  drawOverlay(ctx, input);
+  drawOverlay(ctx, input, opts.liveText ?? true);
   drawBand(ctx);
 }
