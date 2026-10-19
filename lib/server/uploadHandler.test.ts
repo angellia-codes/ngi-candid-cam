@@ -19,7 +19,7 @@ function fakeDrive(existing: string[] = [], fail = false): { drive: DriveDeps; c
     if (url.startsWith('https://www.googleapis.com/upload/')) return Response.json({ id: 'file-1' });
     return Response.json({ files: existing.map((photoId) => ({ appProperties: { photoId } })) });
   }) as typeof fetch;
-  return { drive: { fetch: fetchFn, getToken: async () => 'tok', sharedDriveId: '0ABC', folderId: '1XYZ' }, calls };
+  return { drive: { fetch: fetchFn, getToken: async () => 'tok', folderId: '1XYZ' }, calls };
 }
 
 function form(o: Partial<Record<'photoId' | 'capturedAt' | 'consentVersion', string>> = {}, image: Uint8Array = fakeJpeg()) {

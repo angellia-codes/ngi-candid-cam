@@ -10,21 +10,20 @@ function deps(handler: (url: string, init?: RequestInit) => Response | Promise<R
     calls.push({ url, init });
     return handler(url, init);
   }) as typeof fetch;
-  return { d: { fetch: fetchFn, getToken: async () => 'tok', sharedDriveId: '0ABC', folderId: '1XYZ' }, calls };
+  return { d: { fetch: fetchFn, getToken: async () => 'tok', folderId: '1XYZ' }, calls };
 }
 
 const signal = () => AbortSignal.timeout(5000);
 
 describe('listDevicePhotos', () => {
-  it('queries the Shared Drive by device ID and returns photo IDs', async () => {
+  it('queries the Photos folder by device ID and returns photo IDs', async () => {
     const { d, calls } = deps(() =>
       Response.json({ files: [{ appProperties: { photoId: 'p1' } }, { appProperties: { photoId: 'p2' } }, {}] }),
     );
     const ids = await listDevicePhotos(d, 'dev-1', signal());
     expect(ids).toEqual(['p1', 'p2']);
     const url = new URL(calls[0]!.url);
-    expect(url.searchParams.get('supportsAllDrives')).toBe('true');
-    expect(url.searchParams.get('driveId')).toBe('0ABC');
+    expect(url.searchParams.get('spaces')).toBe('drive');
     expect(url.searchParams.get('q')).toContain("value='dev-1'");
     expect(url.searchParams.get('q')).toContain("'1XYZ' in parents");
     expect((calls[0]!.init!.headers as Record<string, string>).authorization).toBe('Bearer tok');
@@ -60,7 +59,6 @@ describe('createPhoto', () => {
     const call = calls[0]!;
     expect(call.url).toContain('/upload/drive/v3/files?');
     expect(call.url).toContain('uploadType=multipart');
-    expect(call.url).toContain('supportsAllDrives=true');
     const body = await (call.init!.body as Blob).text();
     expect(body).toContain('"name":"NF26_x.jpg"');
     expect(body).toContain('"parents":["1XYZ"]');
@@ -92,13 +90,25 @@ describe('errors', () => {
 });
 
 describe('checkFolder', () => {
-  it('passes when the folder is in the Shared Drive and writable', async () => {
-    const { d } = deps(() => Response.json({ id: '1XYZ', driveId: '0ABC', capabilities: { canAddChildren: true } }));
+  const folder = { id: '1XYZ', mimeType: 'application/vnd.google-apps.folder', trashed: false, capabilities: { canAddChildren: true } };
+
+  it('passes when the folder exists and is writable', async () => {
+    const { d } = deps(() => Response.json(folder));
     await expect(checkFolder(d, signal())).resolves.toBeUndefined();
   });
 
-  it('fails when the folder is in another drive', async () => {
-    const { d } = deps(() => Response.json({ id: '1XYZ', driveId: 'OTHER', capabilities: { canAddChildren: true } }));
-    await expect(checkFolder(d, signal())).rejects.toThrow('Folder is not in the configured Shared Drive');
+  it('fails when the ID is not a folder', async () => {
+    const { d } = deps(() => Response.json({ ...folder, mimeType: 'image/jpeg' }));
+    await expect(checkFolder(d, signal())).rejects.toThrow('DRIVE_FOLDER_ID is not a folder');
+  });
+
+  it('fails when the folder is in the trash', async () => {
+    const { d } = deps(() => Response.json({ ...folder, trashed: true }));
+    await expect(checkFolder(d, signal())).rejects.toThrow('The Photos folder is in the Drive trash');
+  });
+
+  it('fails when the account cannot add files', async () => {
+    const { d } = deps(() => Response.json({ ...folder, capabilities: { canAddChildren: false } }));
+    await expect(checkFolder(d, signal())).rejects.toThrow('cannot add files');
   });
 });
