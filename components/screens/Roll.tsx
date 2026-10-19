@@ -1,9 +1,12 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
+import { StatusBadge } from '@/components/motion/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { savePhoto } from '@/lib/client/save';
 import { useObjectUrl } from '@/lib/client/useObjectUrl';
-import { shotsUsed, type PhotoRecord } from '@/lib/queue/policy';
+import { badgeFor, shouldStamp } from '@/lib/motion/badge';
+import { shotsUsed, type PhotoRecord, type PhotoStatus } from '@/lib/queue/policy';
 import { formatFileName, formatStamp } from '@/lib/shared/time';
 
 type Props = {
@@ -14,25 +17,17 @@ type Props = {
   onRetryNow: () => void;
 };
 
-function statusLabel(r: PhotoRecord, progress: number | undefined): { text: string; tone: string } {
-  switch (r.status) {
-    case 'developing':
-      return { text: 'Developing', tone: 'text-cream' };
-    case 'sending':
-      return { text: progress === undefined ? 'Sending' : `Sending ${Math.round(progress * 100)}%`, tone: 'text-gold' };
-    case 'saved':
-      return { text: 'Saved ✓', tone: 'text-green' };
-    case 'retrying':
-      return { text: r.lastError === 'consent_required' ? 'Waiting for consent' : 'Retrying', tone: 'text-gold' };
-    case 'not_sent':
-      return { text: 'Not sent · shot refunded', tone: 'text-pink' };
-  }
-}
-
 function RollItem({ record, progress }: { record: PhotoRecord; progress: number | undefined }) {
   const url = useObjectUrl(record.photoId, record.bytes);
-  const label = statusLabel(record, progress);
+  const prevStatus = useRef<PhotoStatus | undefined>(undefined);
+  const [stampKey, setStampKey] = useState(0);
   const capturedAt = new Date(record.capturedAt);
+
+  useEffect(() => {
+    if (shouldStamp(prevStatus.current, record.status)) setStampKey((k) => k + 1);
+    prevStatus.current = record.status;
+  }, [record.status]);
+
   return (
     <li className="space-y-2">
       {url ? (
@@ -41,7 +36,7 @@ function RollItem({ record, progress }: { record: PhotoRecord; progress: number 
       ) : (
         <div className="aspect-[1320/1920] w-full rounded-md bg-body" />
       )}
-      <p className={`font-label text-sm ${label.tone}`}>{label.text}</p>
+      <StatusBadge key={stampKey} badge={badgeFor(record, progress)} stamp={stampKey > 0} />
       <button
         type="button"
         onClick={() => void savePhoto(new Blob([record.bytes], { type: 'image/jpeg' }), formatFileName(capturedAt, record.photoId))}
