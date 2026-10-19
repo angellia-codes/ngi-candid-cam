@@ -1,10 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Odometer } from '@/components/motion/Odometer';
+import { PowerOn } from '@/components/motion/PowerOn';
+import { ShutterBlades } from '@/components/motion/ShutterBlades';
 import { captureFrame } from '@/lib/camera/capture';
 import type { BlockReason } from '@/lib/camera/support';
 import { useCamera } from '@/lib/camera/useCamera';
 import { useNow } from '@/lib/client/useNow';
+import { toKeyframes } from '@/lib/motion/flicker';
+import { prefersReducedMotion } from '@/lib/motion/reducedMotion';
+import { entersLowFilm, shotTone } from '@/lib/motion/shotTone';
+import { LOW_FILM_BLINK, LOW_FILM_BLINK_MS, MOMENTS } from '@/lib/motion/tokens';
 import { formatStamp } from '@/lib/shared/time';
 
 type Props = {
@@ -16,6 +23,8 @@ type Props = {
   onOpenRoll: () => void;
   onBlock: (reason: BlockReason) => void;
   onExit: () => void;
+  /** Increments when a confirmed photo lands in the thumbnail (Task 20). */
+  thumbBumpKey?: number;
 };
 
 const TIMERS = [0, 3, 10] as const;
@@ -27,15 +36,28 @@ function Bracket({ className }: { className: string }) {
   return <span aria-hidden="true" className={`absolute size-8 border-paper ${className}`} />;
 }
 
-export function Camera({ active, shotsLeft, total, lastPhotoUrl, onCaptured, onOpenRoll, onBlock, onExit }: Props) {
+export function Camera({
+  active,
+  shotsLeft,
+  total,
+  lastPhotoUrl,
+  onCaptured,
+  onOpenRoll,
+  onBlock,
+  onExit,
+  thumbBumpKey = 0,
+}: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const counterRef = useRef<HTMLSpanElement>(null);
+  const prevShotsLeft = useRef(shotsLeft);
+  const capturingRef = useRef(false);
   const cam = useCamera(videoRef, active);
   const now = useNow(15_000);
   const [timer, setTimer] = useState<Timer>(0);
   const [count, setCount] = useState<number | null>(null);
   const [screenFlash, setScreenFlash] = useState(false);
   const [whiteout, setWhiteout] = useState(false);
-  const [shutterFlash, setShutterFlash] = useState(false);
+  const [shutterKey, setShutterKey] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -46,19 +68,32 @@ export function Camera({ active, shotsLeft, total, lastPhotoUrl, onCaptured, onO
     if (countdownRef.current) clearInterval(countdownRef.current);
   }, []);
 
+  // Moment 9: the counter blinks twice when it first drops to 3 shots.
+  useEffect(() => {
+    const prev = prevShotsLeft.current;
+    prevShotsLeft.current = shotsLeft;
+    if (entersLowFilm(prev, shotsLeft) && !prefersReducedMotion()) {
+      counterRef.current?.animate(toKeyframes(LOW_FILM_BLINK, LOW_FILM_BLINK_MS), { duration: LOW_FILM_BLINK_MS });
+    }
+  }, [shotsLeft]);
+
   const shoot = useCallback(async () => {
     const video = videoRef.current;
-    if (!video || cam.status !== 'live' || shotsLeft <= 0) return;
+    if (!video || cam.status !== 'live' || shotsLeft <= 0 || capturingRef.current) return;
+    capturingRef.current = true;
     const lightFace = screenFlash && cam.facing === 'user';
     if (lightFace) {
       setWhiteout(true);
       await wait(180); // let the white screen light the face before the frame is taken
     }
     const capturedAt = new Date();
-    const photo = captureFrame(video);
+    const photo = captureFrame(video); // the photo is taken now; the blades play over it afterwards
     setWhiteout(false);
-    setShutterFlash(true);
-    setTimeout(() => setShutterFlash(false), 160);
+    if (!prefersReducedMotion()) {
+      setShutterKey((k) => k + 1);
+      await wait(MOMENTS.shutterBlades);
+    }
+    capturingRef.current = false;
     onCaptured(photo, capturedAt);
   }, [cam.status, cam.facing, screenFlash, shotsLeft, onCaptured]);
 
@@ -81,7 +116,8 @@ export function Camera({ active, shotsLeft, total, lastPhotoUrl, onCaptured, onO
   };
 
   const nextTimer = () => setTimer(TIMERS[(TIMERS.indexOf(timer) + 1) % TIMERS.length]!);
-  const empty = shotsLeft <= 0;
+  const tone = shotTone(shotsLeft);
+  const empty = tone === 'empty';
   const flashOn = cam.facing === 'user' ? screenFlash : cam.torchOn;
   const canFlash = cam.facing === 'user' || cam.torchAvailable;
 
@@ -99,8 +135,12 @@ export function Camera({ active, shotsLeft, total, lastPhotoUrl, onCaptured, onO
           </svg>
         </button>
         <span className="font-display text-gold">NF&apos;26</span>
-        <span aria-live="polite" className={`min-w-16 text-right text-lg ${empty ? 'text-pink' : 'text-green'}`}>
-          {shotsLeft} EXP
+        <span
+          ref={counterRef}
+          aria-live="polite"
+          className={`min-w-16 text-right text-lg tracking-wider ${tone === 'normal' ? 'text-paper' : 'text-pink'}`}
+        >
+          <Odometer value={shotsLeft} /> EXP
         </span>
       </header>
 
@@ -122,17 +162,25 @@ export function Camera({ active, shotsLeft, total, lastPhotoUrl, onCaptured, onO
             <span className="absolute inset-0 grid place-items-center font-label text-cream/70">Opening camera…</span>
           )}
           {count !== null && (
-            <span aria-live="assertive" className="absolute inset-0 grid place-items-center font-display text-8xl text-cream drop-shadow-lg">
-              {count}
+            <span
+              key={count}
+              aria-live="assertive"
+              className={`m-timer-digit absolute inset-0 grid place-items-center font-display text-[clamp(6rem,40vw,11rem)] leading-none drop-shadow-lg ${
+                count === 1 ? 'text-gold' : 'text-paper'
+              }`}
+            >
+              <span className={count === 1 ? 'm-timer-pulse' : ''}>{count}</span>
             </span>
           )}
           {empty && (
-            <div className="absolute inset-0 grid place-items-center bg-ink/80 p-6 text-center">
-              <p className="font-label text-xl text-cream">
-                Roll finished. All {total} shots are in My Roll.
+            <div className="m-fade absolute inset-0 flex flex-col items-center justify-center gap-4 bg-ink/60 p-6 text-center">
+              <span className="rounded-md border-[3px] border-pink bg-ink px-4 py-2 font-display text-3xl text-pink">FILM FULL</span>
+              <p className="font-label text-lg text-paper">
+                All {total} shots used. Open My Roll to save your photos.
               </p>
             </div>
           )}
+          {shutterKey > 0 && <ShutterBlades key={shutterKey} />}
         </div>
       </div>
 
@@ -167,7 +215,7 @@ export function Camera({ active, shotsLeft, total, lastPhotoUrl, onCaptured, onO
             onClick={onShutter}
             disabled={empty || cam.status !== 'live' || count !== null}
             aria-label="Take photo"
-            className="size-20 rounded-full border-4 border-cream bg-gold shadow-[inset_0_0_0_4px_#0D0D0D] transition active:scale-95 disabled:opacity-40"
+            className="size-20 rounded-full border-4 border-cream bg-gold shadow-[inset_0_0_0_4px_#0D0D0D] active:brightness-90 disabled:opacity-35"
           />
         </div>
 
@@ -185,24 +233,27 @@ export function Camera({ active, shotsLeft, total, lastPhotoUrl, onCaptured, onO
               </svg>
             </button>
           )}
-          <button
-            type="button"
-            onClick={onOpenRoll}
-            aria-label="Open My Roll"
-            className="size-12 overflow-hidden rounded-lg border border-cream/40 bg-body"
-          >
-            {lastPhotoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={lastPhotoUrl} alt="" className="size-full object-cover" />
-            ) : (
-              <span className="font-label text-xs text-cream/60">ROLL</span>
-            )}
-          </button>
+          <span key={thumbBumpKey} className={thumbBumpKey > 0 ? 'm-bump' : 'block'}>
+            <button
+              type="button"
+              data-roll-thumb
+              onClick={onOpenRoll}
+              aria-label="Open My Roll"
+              className="block size-12 overflow-hidden rounded-lg border border-cream/40 bg-body"
+            >
+              {lastPhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={lastPhotoUrl} alt="" className="size-full object-cover" />
+              ) : (
+                <span className="grid size-full place-items-center font-label text-xs text-cream/60">ROLL</span>
+              )}
+            </button>
+          </span>
         </div>
       </footer>
 
       {whiteout && <div aria-hidden="true" className="fixed inset-0 z-50 bg-white" />}
-      {shutterFlash && <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-40 bg-white/80" />}
+      {active && <PowerOn />}
     </main>
   );
 }
