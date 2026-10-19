@@ -9,6 +9,8 @@
   --color-pink: #FF1B6B;
   --color-green: #39FF14;
   --color-muted: #A39A8B;
+  --color-amber: #FFB020;
+  --color-alert: #FF6B5E;
   --font-display: "Bungee", system-ui, sans-serif;
   --font-label: "Oswald", "Arial Narrow", sans-serif;
 }
@@ -25,11 +27,80 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/*
+ * Motion. Durations and easings mirror lib/motion/tokens.ts.
+ * One-shot classes replay when their element gets a new React key.
+ */
+.m-flash { opacity: 0; animation: m-flash 80ms linear forwards; }
+.m-blade-top { transform: translateY(-101%); animation: m-blade-top 120ms linear forwards; }
+.m-blade-bottom { transform: translateY(101%); animation: m-blade-bottom 120ms linear forwards; }
+.m-odo { animation: m-roll 250ms cubic-bezier(0.2, 0, 0, 1) forwards; }
+.m-timer-digit { animation: m-segment 1000ms linear; }
+.m-timer-pulse { display: inline-block; animation: m-pulse 1000ms cubic-bezier(0.2, 0, 0, 1); }
+.m-fade { animation: m-fade 150ms linear; }
+.m-lcd-swap { animation: m-lcd 150ms steps(4, end); }
+.m-bump { display: block; animation: m-bump 200ms cubic-bezier(0.3, 1.4, 0.5, 1); }
+.m-badge-pulse { animation: m-badge-pulse 1.2s ease-in-out infinite alternate; }
+.m-badge-march { animation: m-badge-march 600ms linear infinite; }
+.m-badge-blink { animation: m-badge-blink 1s steps(1, end) infinite; }
+.m-badge-stamp { animation: m-badge-stamp 200ms cubic-bezier(0.2, 0, 0, 1); }
+
+@keyframes m-flash { from { opacity: 0.92; } to { opacity: 0; } }
+@keyframes m-flash-soft { from { opacity: 0.5; } to { opacity: 0; } }
+@keyframes m-blade-top {
+  0% { transform: translateY(-101%); }
+  50% { transform: translateY(0); }
+  100% { transform: translateY(-101%); }
+}
+@keyframes m-blade-bottom {
+  0% { transform: translateY(101%); }
+  50% { transform: translateY(0); }
+  100% { transform: translateY(101%); }
+}
+@keyframes m-roll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+@keyframes m-segment {
+  0% { opacity: 0; }
+  4% { opacity: 1; }
+  6% { opacity: 0.25; }
+  8%, 100% { opacity: 1; }
+}
+@keyframes m-pulse {
+  0% { transform: scale(1); }
+  48% { transform: scale(1.12); }
+  96%, 100% { transform: scale(1); }
+}
+@keyframes m-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes m-lcd { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes m-bump {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+@keyframes m-badge-pulse { from { opacity: 0.3; } to { opacity: 1; } }
+@keyframes m-badge-march { from { transform: translateX(-20px); } to { transform: translateX(0); } }
+@keyframes m-badge-blink { 0% { opacity: 1; } 50% { opacity: 0.15; } }
+@keyframes m-badge-stamp {
+  from { opacity: 0; transform: scale(1.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Reduced motion: the spec's fallback for each moment. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation: none !important;
     transition: none !important;
   }
+  .m-flash { animation-name: m-flash-soft; }
+  .m-blade-top,
+  .m-blade-bottom { animation: none; visibility: hidden; }
+  .m-odo { animation-timing-function: steps(1, start); }
+  .m-timer-digit,
+  .m-timer-pulse,
+  .m-lcd-swap,
+  .m-bump,
+  .m-badge-pulse,
+  .m-badge-march,
+  .m-badge-blink,
+  .m-badge-stamp { animation: none; }
 }
