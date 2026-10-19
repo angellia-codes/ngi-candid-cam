@@ -17,6 +17,7 @@
 ## Release checklist
 - [ ] `npm run typecheck && npm run lint && npm test` pass
 - [ ] Branch deploy tested on one iPhone and one Android
+- [ ] Motion checked against NF26-In-App-Motion-Reel.mp4 on both phones, including with Reduce Motion on (motion plan, Task 23)
 - [ ] Event times in Netlify match: open 8 Dec 15:00, camera close 8 Dec 23:00, uploads close 9 Dec 12:00 (all `+08:00`)
 - [ ] `https://<site>/api/health?token=<HEALTH_CHECK_TOKEN>` returns `"ok":true`
 - [ ] QR code encodes `https://<site>/?k=<EVENT_KEY>` (test-scan it)
