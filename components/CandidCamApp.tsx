@@ -12,6 +12,7 @@ import { Roll } from '@/components/screens/Roll';
 import { Welcome } from '@/components/screens/Welcome';
 import { initialState, reduce } from '@/lib/app/machine';
 import { preflight } from '@/lib/app/preflight';
+import { useChannelSwitch } from '@/lib/app/useChannelSwitch';
 import type { BlockReason } from '@/lib/camera/support';
 import { acceptConsent, clearConsent, hasConsent } from '@/lib/client/consent';
 import { initIdentity } from '@/lib/client/identity';
@@ -34,6 +35,8 @@ export default function CandidCamApp() {
   const clockOffset = useRef(0);
   const captureCount = useRef(0);
   const tick = useNow(30_000);
+  const switchPanelRef = useRef<HTMLDivElement>(null);
+  useChannelSwitch(switchPanelRef, state.screen);
 
   const loadStatus = useCallback(async () => {
     setStatusError(null);
@@ -182,6 +185,15 @@ export default function CandidCamApp() {
           onOpenRoll={() => dispatch({ type: 'OPEN_ROLL' })}
         />
       )}
+
+      <div
+        ref={switchPanelRef}
+        aria-hidden="true"
+        style={{ transform: 'translateX(-100%)' }}
+        className="pointer-events-none fixed inset-0 z-40 bg-ink"
+      >
+        <span className="absolute inset-y-0 right-0 w-[3px] bg-paper shadow-[0_0_14px_3px_rgba(245,240,230,0.55)]" />
+      </div>
 
       {fly && (
         <FlyToThumb
